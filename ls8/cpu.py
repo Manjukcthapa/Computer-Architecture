@@ -1,42 +1,76 @@
 """CPU functionality."""
 
 import sys
+LDI = 0b10000010
+PRN = 0b01000111
+HLT = 0b00000001
+MUL = 0b10100010
+POP = 0b01000110
+PUSH = 0b01000101
+
+SP = 7
+
 
 class CPU:
     """Main CPU class."""
 
     def __init__(self):
         """Construct a new CPU."""
-        pass
+     #  Add list properties to the `CPU` class to hold 256 bytes of memory
+    # and 8 general-purpose registers.
+        self.pc = 0
+        self.reg = [0] * 8
+        self.ram = [0] * 256
 
-    def load(self):
+    def load(self, filename):
         """Load a program into memory."""
 
-        address = 0
+     # sys.argv is a list in Python, which contains the command-line arguments passed to the script.
+        try:
+            address = 0
+            # Open the file
+            with open(sys.argv[1]) as f:
+                # Read all the lines
+                for line in f:
+                    # Parse out the comments
+                    comment_split = line.strip().split("#")
+                    # Cast number strings to ints
+                    value = comment_split[0].strip()
+                    # Ignore blank lines
+                    if value == "":
+                        continue
+                    instruction = int(value, 2)
+                    # Populate a memory array
+                    self.ram[address] = instruction
+                    address += 1
 
-        # For now, we've just hardcoded a program:
+        except FileNotFoundError:
+            print("File not found")
+            sys.exit(2)
 
-        program = [
-            # From print8.ls8
-            0b10000010, # LDI R0,8
-            0b00000000,
-            0b00001000,
-            0b01000111, # PRN R0
-            0b00000000,
-            0b00000001, # HLT
-        ]
+    # In `CPU`, add method `ram_read()` and `ram_write()`
+    # that access the RAM inside the `CPU` object.
 
-        for instruction in program:
-            self.ram[address] = instruction
-            address += 1
+  # `ram_read()` should accept the address to read and return the value stored there.
 
+    def ram_read(self, mar):
+        mdr = self.ram[mar]
+        return mdr
+
+   
+# `ram_write()` should accept a value to write, and the address to write it to.      
+
+    def ram_write(self, mdr, mar):
+        self.ram[mar] = mdr
 
     def alu(self, op, reg_a, reg_b):
         """ALU operations."""
-
+##An arithmetic logic unit (ALU)
         if op == "ADD":
             self.reg[reg_a] += self.reg[reg_b]
-        #elif op == "SUB": etc
+        elif op == MUL:
+            self.reg[reg_a] *= self.reg[reg_b]
+        # elif op == "SUB": etc
         else:
             raise Exception("Unsupported ALU operation")
 
@@ -48,8 +82,8 @@ class CPU:
 
         print(f"TRACE: %02X | %02X %02X %02X |" % (
             self.pc,
-            #self.fl,
-            #self.ie,
+            # self.fl,
+            # self.ie,
             self.ram_read(self.pc),
             self.ram_read(self.pc + 1),
             self.ram_read(self.pc + 2)
@@ -62,4 +96,77 @@ class CPU:
 
     def run(self):
         """Run the CPU."""
-        pass
+        while True:
+            IR = self.ram[self.pc]
+            operand_a = self.ram_read(self.pc + 1)
+            operand_b = self.ram_read(self.pc + 2)
+
+              # LDI register immediate
+            # Set the value of a register to an integer.
+            # LDI 0b10000010 00000rrr iiiiiiii
+            if IR == LDI:
+                 #reg location
+                self.reg[operand_a] = operand_b
+                self.pc += 3
+
+             # PRN
+            # PRN register pseudo-instruction   
+            elif IR == PRN:
+            #Print numeric value stored in the given register
+                print(self.reg[operand_a])
+                self.pc += 2
+            
+            #MUL
+            # MUL registerA registerB
+            # Multiply the values in two registers together and store the result in registerA.
+
+            elif IR == MUL:
+                self.alu(IR, operand_a, operand_b)
+                self.pc += 3
+
+            elif IR == PUSH:
+                # Grab the register argument
+                reg = self.ram[self.pc + 1]
+                val = self.reg[reg]
+                # Decrement the SP
+                self.reg[SP] -= 1
+                # Copy the value in the given register to the address pointed to by the SP.
+                self.ram[self.reg[SP]] = val
+                self.pc += 2
+            elif IR == POP:
+                # Grab the value from the top of the stack
+                reg = self.ram[self.pc + 1]
+                val = self.ram[self.reg[SP]]
+                # Copy the value from the address pointed to by SP to the given register.
+                self.reg[reg] = val
+                # Increment SP.
+                self.reg[SP] += 1
+                self.pc += 2
+            
+
+
+
+            # HLT
+            # Halt the CPU (and exit the emulator).
+            # HLT 0b00000001
+            elif IR == HLT:
+                sys.exit(0)
+            else:
+                print(f"I did not understand that command: {IR}")
+                sys.exit(1)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+     
